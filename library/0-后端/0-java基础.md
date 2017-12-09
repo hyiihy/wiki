@@ -86,6 +86,7 @@ public static void main(String[] args){
 附上Integer和String中重写的equals()方法：  
 *
 ```Java
+@Override
 public boolean equals(Object obj) {
        if (obj instanceof Integer) {
            return value == ((Integer)obj).intValue();
@@ -94,6 +95,7 @@ public boolean equals(Object obj) {
    }
 ```
 ```Java
+@Override
 public boolean equals(Object anObject) {
         if (this == anObject) {
             return true;
@@ -117,3 +119,183 @@ public boolean equals(Object anObject) {
     }
 ```
 *Java规范要求，一旦复写了equals()方法，必须同时复写hashCode()方法，按下不表*
+
+## 自动装箱、拆箱
+**8种基本数据类型都有对应的引用类型：**  
+- 第一类：整型
+  - byte Byte
+  - short Short
+  - int Integer
+  - long Long
+
+
+- 第二类：浮点型
+  - float Float
+  - double Double
+
+
+- 第三类：逻辑型
+  - boolean Boolean
+
+
+- 第四类：字符型
+  - char Character
+
+**引入引用类型的好处：**
+- 空值可以用null存储
+- 为泛型提供支持
+- 提供常用的属性和API
+
+**装拆箱方法：**
+- 装箱：valueOf()
+- 拆箱：xxxValue()
+
+*注意Integer中的parseInt()方法和Long中的parseLong()方法，是传入String类型将字符串转为Integer/Long*
+
+## equals()和hashCode()  
+
+**java语言规范要求equals方法具有下面的特性：**
+- 自反性:对于任何非空引用x,x.equals(x)应该返回true;
+- 对称性:对于任何引用x,和y,当且仅当,y.equals(x)返回true,x.equals(y)也应该返回true;
+- 传递性:对于任何引用x,y,z,如果x.equals(y)返回true,y.equals(z)返回true,那么x.equals(z)也应该返回true;
+- 一致性:如果x,y引用的对象没有发生变化,反复调用x.equals(y)应该返回同样的结果;
+- 对于任意非空引用x,x.equals(null)返回false;
+
+Object中的equals():
+```Java
+public boolean equals(Object obj) {
+        return (this == obj);
+    }
+```
+要复写equals()方法时，应注意equals传入的参数是Object。  
+若传入的参数不是Object类，加@Override注解会报错。（@Override的作用正是在于此）
+
+**java语言规范要求hashCode()方法具有下面的特性：**  
+- 重写了equals()方法的对象一定要重写hashCode()方法。
+- 如果两个对象的equals()方法返回true,则它们的hashCode()方法返回的值相同。
+- 如果两个对象的equals()方法返回false,则他们的hashCode()方法返回的值可能相同。(当然，hash冲突越多，hash集合的效率越低，因此hashCode()方法的设计很关键)
+
+Object的hashCode()方法为native方法，源码略。  
+hashCode()方法返回int类型的散列码。  
+hashCode()方法是为了更好地支持基于散列的集合类，如Hashtable, HashMap, HashSet 等。  
+
+*疑问：
+既然hashCode()是为了满足hash集合，为何不要求传入hash集合的元素必须实现一个hashable接口，这样就能保证传入的元素一定有复写*
+
+在ArrayList中，contains()方法用到了equals()方法，源码如下：
+```Java
+public boolean contains(Object o) {
+   return indexOf(o) >= 0;
+}
+
+public int indexOf(Object o) {
+   if (o == null) {
+       for (int i = 0; i < size; i++)
+           if (elementData[i]==null)
+               return i;
+   } else {
+       for (int i = 0; i < size; i++)
+           if (o.equals(elementData[i]))
+               return i;
+   }
+   return -1;
+}
+```
+HashMap中，containsKey()方法用到了equals()方法和hashCode()方法，源码如下：
+```Java
+public boolean containsKey(Object key) {
+    return getNode(hash(key), key) != null;
+}
+
+final Node<K,V> getNode(int hash, Object key) {
+    Node<K,V>[] tab; Node<K,V> first, e; int n; K k;
+    if ((tab = table) != null && (n = tab.length) > 0 &&
+        (first = tab[(n - 1) & hash]) != null) {
+        if (first.hash == hash && // always check first node
+            ((k = first.key) == key || (key != null && key.equals(k))))
+            return first;
+        if ((e = first.next) != null) {
+            if (first instanceof TreeNode)
+                return ((TreeNode<K,V>)first).getTreeNode(hash, key);
+            do {
+                if (e.hash == hash &&
+                    ((k = e.key) == key || (key != null && key.equals(k))))
+                    return e;
+            } while ((e = e.next) != null);
+        }
+    }
+    return null;
+}
+
+static final int hash(Object key) {
+    int h;
+    return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+}
+```
+HashMap中，containsValue()方法用到了equals()方法，源码如下：
+```Java
+public boolean containsValue(Object value) {
+    Node<K,V>[] tab; V v;
+    if ((tab = table) != null && size > 0) {
+        for (int i = 0; i < tab.length; ++i) {
+            for (Node<K,V> e = tab[i]; e != null; e = e.next) {
+                if ((v = e.value) == value ||
+                    (value != null && value.equals(v)))
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+```
+HashSet底层实现是HashMap，它的contains()方法调用的是HashMap的containsKey()方法，因此也用到了equals()方法和hashCode()方法,源码如下：
+```Java
+public boolean contains(Object o) {
+    return map.containsKey(o);
+}
+```
+
+## ArrayList
+ArrayList底层为数组，对应于数据结构为顺序表。  
+构造方法的源码如下：
+```Java
+//无参
+public ArrayList() {
+    this.elementData = DEFAULTCAPACITY_EMPTY_ELEMENTDATA;
+}
+
+//有参
+public ArrayList(int initialCapacity) {
+    if (initialCapacity > 0) {
+        this.elementData = new Object[initialCapacity];
+    } else if (initialCapacity == 0) {
+        this.elementData = EMPTY_ELEMENTDATA;
+    } else {
+        throw new IllegalArgumentException("Illegal Capacity: "+
+                                           initialCapacity);
+    }
+}
+
+transient Object[] elementData; // non-private to simplify nested class access
+
+private static final Object[] DEFAULTCAPACITY_EMPTY_ELEMENTDATA = {};
+```
+可以看到，ArrayList在初始化时，其内部的数组Object[]，都是指常量池中的一个空数组。
+
+add()方法的源码如下：
+```Java
+public boolean add(E e) {
+    ensureCapacityInternal(size + 1);  // Increments modCount!!
+    elementData[size++] = e;
+    return true;
+}
+```
+其中ensureCapacityInternal()是为了确定数组的大小，以及modCount自增。源码略，modCount记录修改次数，功能按下不表。  
+ensureCapacityInternal()内部还使用了`System.arraycopy()`方法，用来复制数组。
+
+*ArrayList与数组的异同：  
+ArrayList底层依赖数组实现。  
+ArrayList可扩容（1.5倍），数组大小固定。*
+
+## Java集合类
+![集合类UML图](assets/0/v2-76c3c04de2e8609c488fa0081fb99c26_hd.jpg)  
